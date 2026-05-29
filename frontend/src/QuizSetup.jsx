@@ -27,6 +27,7 @@ export function QuizSetup({ onStart, onCancel }) {
   const [dateFrom, setDateFrom] = useState(saved?.dateFrom ?? "");
   const [dateTo, setDateTo] = useState(saved?.dateTo ?? "");
   const [masteryRange, setMasteryRange] = useState(saved?.masteryRange ?? [MASTERY_MIN, MASTERY_MAX]);
+  const [blindMode, setBlindMode] = useState(saved?.blindMode ?? false);
 
   const toggleSpeechPart = (val) =>
     setSpeechParts((prev) =>
@@ -47,14 +48,15 @@ export function QuizSetup({ onStart, onCancel }) {
     setDateFrom("");
     setDateTo("");
     setMasteryRange([MASTERY_MIN, MASTERY_MAX]);
+    setBlindMode(false);
     localStorage.removeItem(STORAGE_KEY);
   };
 
   const isDefault = count == 10 && !speechParts.length && !entryTypes.length
-    && !dateFrom && !dateTo && !masteryFiltered;
+    && !dateFrom && !dateTo && !masteryFiltered && !blindMode;
 
   const handleStart = () => {
-    saveParams({ count, speechParts, entryTypes, dateFrom, dateTo, masteryRange });
+    saveParams({ count, speechParts, entryTypes, dateFrom, dateTo, masteryRange, blindMode });
     onStart({
       count: Math.max(1, Number(count)),
       speech_parts: speechParts.length ? speechParts : null,
@@ -63,6 +65,7 @@ export function QuizSetup({ onStart, onCancel }) {
       date_to: dateTo || null,
       mastery_min: masteryFiltered ? masteryRange[0] : null,
       mastery_max: masteryFiltered ? masteryRange[1] : null,
+      blindMode,
     });
   };
 
@@ -162,6 +165,21 @@ export function QuizSetup({ onStart, onCancel }) {
               max={MASTERY_MAX}
             />
           </div>
+
+          <button
+            type="button"
+            onClick={() => setBlindMode((v) => !v)}
+            style={{ ...styles.blindToggle, ...(blindMode ? styles.blindToggleOn : {}) }}
+          >
+            <HeadphonesIcon />
+            <div style={styles.blindToggleText}>
+              <span style={styles.blindToggleTitle}>Слепой режим</span>
+              <span style={styles.blindToggleDesc}>Слово озвучивается автоматически · тап → перевод · свайп → ответ</span>
+            </div>
+            <div style={{ ...styles.blindTogglePill, ...(blindMode ? styles.blindTogglePillOn : {}) }}>
+              {blindMode ? "вкл" : "выкл"}
+            </div>
+          </button>
         </div>
 
         <div style={styles.actions}>
@@ -228,4 +246,33 @@ const styles = {
   resetBtn: { marginRight: "auto" },
   overlayMobile: { padding: 0, alignItems: "flex-end" },
   modalMobile: { borderRadius: "var(--radius-lg) var(--radius-lg) 0 0", maxWidth: "100%", width: "100%", maxHeight: "90vh" },
+
+  blindToggle: {
+    display: "flex", alignItems: "center", gap: 12,
+    background: "var(--bg)", border: "1px solid var(--border)",
+    borderRadius: "var(--radius-lg)", padding: "12px 14px",
+    cursor: "pointer", textAlign: "left", width: "100%",
+    transition: "border-color 0.15s, background 0.15s",
+  },
+  blindToggleOn: {
+    borderColor: "var(--accent)",
+    background: "rgba(108,127,255,0.06)",
+  },
+  blindToggleText: { display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 },
+  blindToggleTitle: { fontSize: 13, fontWeight: 600, color: "var(--text)" },
+  blindToggleDesc: { fontSize: 11, color: "var(--text-muted)", lineHeight: 1.4 },
+  blindTogglePill: {
+    fontSize: 11, fontWeight: 600, padding: "3px 8px",
+    borderRadius: 20, flexShrink: 0,
+    background: "var(--border)", color: "var(--text-muted)",
+    transition: "background 0.15s, color 0.15s",
+  },
+  blindTogglePillOn: { background: "var(--accent)", color: "#fff" },
 };
+
+const HeadphonesIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, color: "var(--accent)" }}>
+    <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+    <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+  </svg>
+);

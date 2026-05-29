@@ -1,18 +1,44 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useIsMobile } from "./useIsMobile";
 import { api } from "./api";
-import { SPEECH_PART_LABELS, ENTRY_TYPE_LABELS } from "./constants";
+
+function speakWord(word) {
+  return new Promise((resolve) => {
+    if (word.audio_file) {
+      const audio = new Audio(api.getAudioUrl(word.id));
+      audio.onended = resolve;
+      audio.onerror = resolve;
+      audio.play();
+    } else if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance(word.word);
+      utt.lang = "en-US";
+      utt.onend = resolve;
+      utt.onerror = resolve;
+      window.speechSynthesis.speak(utt);
+    } else {
+      resolve();
+    }
+  });
+}
+
+function speakTranslation(text) {
+  return new Promise((resolve) => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.lang = "ru-RU";
+      utt.onend = resolve;
+      utt.onerror = resolve;
+      window.speechSynthesis.speak(utt);
+    } else {
+      resolve();
+    }
+  });
+}
 
 function playWord(word) {
-  if (word.audio_file) {
-    const audio = new Audio(api.getAudioUrl(word.id));
-    audio.play();
-  } else if (window.speechSynthesis) {
-    window.speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(word.word);
-    utt.lang = "en-US";
-    window.speechSynthesis.speak(utt);
-  }
+  speakWord(word);
 }
 
 const SpeakerIcon = () => (
@@ -29,7 +55,7 @@ const PART_COLORS = {
   interjection:"#ffd43b", phrasal_verb:"#00cec9", other:"#636e72",
 };
 
-export function QuizSession({ words: initialWords, onFinish }) {
+export function QuizSession({ words: initialWords, blindMode = false, onFinish }) {
   const isMobile = useIsMobile();
   const [words, setWords] = useState(initialWords);
   const [index, setIndex] = useState(0);
@@ -39,9 +65,13 @@ export function QuizSession({ words: initialWords, onFinish }) {
   const [done, setDone] = useState(false);
   const [cardKey, setCardKey] = useState(0);
 
+  // swipe tracking
+  const touchStart = useRef(null);
+  const swipeLocked = useRef(false);
+
   const current = words[index];
 
-  const answer = async (correct) => {
+  const answer = useCallback(async (correct) => {
     if (answering) return;
     setAnswering(true);
     try {
@@ -57,6 +87,42 @@ export function QuizSession({ words: initialWords, onFinish }) {
       }
     } finally {
       setAnswering(false);
+    }
+  }, [answering, current, index, words.length]);
+
+  const reveal = useCallback(() => {
+    if (revealed) return;
+    setRevealed(true);
+    if (blindMode) speakTranslation(current.translation);
+  }, [revealed, blindMode, current]);
+
+  // auto-play word when card changes in blind mode
+  useEffect(() => {
+    if (!blindMode || done) return;
+    speakWord(current);
+  }, [cardKey, blindMode, done]);
+
+  // swipe handlers
+  const onTouchStart = (e) => {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    swipeLocked.current = false;
+  };
+  const onTouchEnd = (e) => {
+    if (!blindMode || !touchStart.current || swipeLocked.current) return;
+    const dx = e.changedTouches[0].clientX - touchStart.current.x;
+    const dy = e.changedTouches[0].clientY - touchStart.current.y;
+    const absDx = Math.abs(dx), absDy = Math.abs(dy);
+
+    if (absDx < 10 && absDy < 10) {
+      // tap
+      reveal();
+      return;
+    }
+    if (absDx > absDy && absDx > 40) {
+      // horizontal swipe — only if revealed
+      if (!revealed) return;
+      swipeLocked.current = true;
+      answer(dx > 0);
     }
   };
 
@@ -107,7 +173,11 @@ export function QuizSession({ words: initialWords, onFinish }) {
   const progress = (index / words.length) * 100;
 
   return (
-    <div style={{ ...styles.overlay, ...(isMobile ? styles.overlayMobile : {}) }}>
+    <div
+      style={{ ...styles.overlay, ...(isMobile ? styles.overlayMobile : {}) }}
+      onTouchStart={blindMode ? onTouchStart : undefined}
+      onTouchEnd={blindMode ? onTouchEnd : undefined}
+    >
       <div style={{ ...styles.modal, ...(isMobile ? styles.modalMobile : {}) }} className="fade-in">
         {/* progress */}
         <div style={styles.progressWrap}>
@@ -115,6 +185,7 @@ export function QuizSession({ words: initialWords, onFinish }) {
             <div style={{ ...styles.progressFill, width: `${progress}%` }} />
           </div>
           <span style={styles.progressText}>{index + 1} / {words.length}</span>
+          {blindMode && <HeadphonesIcon />}
         </div>
 
         {/* card */}
@@ -138,14 +209,7 @@ export function QuizSession({ words: initialWords, onFinish }) {
               <button
                 className="btn-ghost"
                 style={styles.speakerBtn}
-                onClick={() => {
-                  if (window.speechSynthesis) {
-                    window.speechSynthesis.cancel();
-                    const utt = new SpeechSynthesisUtterance(current.translation);
-                    utt.lang = "ru-RU";
-                    window.speechSynthesis.speak(utt);
-                  }
-                }}
+                onClick={() => speakTranslation(current.translation)}
                 title="Произнести перевод"
               >
                 <SpeakerIcon />
@@ -153,34 +217,68 @@ export function QuizSession({ words: initialWords, onFinish }) {
             </div>
             {current.example && <p style={styles.example}>"{current.example}"</p>}
           </div>
+
+          {/* blind mode gesture hints */}
+          {blindMode && (
+            <div style={styles.gestureHints}>
+              {!revealed
+                ? <p style={styles.gestureHint}>👆 тап — открыть перевод</p>
+                : <p style={styles.gestureHint}>← не знаю &nbsp;·&nbsp; знаю →</p>
+              }
+            </div>
+          )}
         </div>
 
         {/* actions */}
-        <div style={styles.bottomArea}>
-          {!revealed && (
-            <button className="btn-ghost" style={styles.revealBtn} onClick={() => setRevealed(true)}>
-              <EyeIcon /> Показать перевод
-            </button>
-          )}
-          <div style={styles.answerRow}>
-            <button
-              className="btn-danger-filled"
-              style={styles.answerBtn}
-              onClick={() => answer(false)}
-              disabled={answering}
-            >
-              ✗ Не знаю
-            </button>
-            <button
-              className="btn-success-filled"
-              style={styles.answerBtn}
-              onClick={() => answer(true)}
-              disabled={answering}
-            >
-              ✓ Знаю
-            </button>
+        {!blindMode && (
+          <div style={styles.bottomArea}>
+            {!revealed && (
+              <button className="btn-ghost" style={styles.revealBtn} onClick={() => setRevealed(true)}>
+                <EyeIcon /> Показать перевод
+              </button>
+            )}
+            <div style={styles.answerRow}>
+              <button
+                className="btn-danger-filled"
+                style={styles.answerBtn}
+                onClick={() => answer(false)}
+                disabled={answering}
+              >
+                ✗ Не знаю
+              </button>
+              <button
+                className="btn-success-filled"
+                style={styles.answerBtn}
+                onClick={() => answer(true)}
+                disabled={answering}
+              >
+                ✓ Знаю
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+        {blindMode && revealed && (
+          <div style={styles.bottomArea}>
+            <div style={styles.answerRow}>
+              <button
+                className="btn-danger-filled"
+                style={styles.answerBtn}
+                onClick={() => answer(false)}
+                disabled={answering}
+              >
+                ✗ Не знаю
+              </button>
+              <button
+                className="btn-success-filled"
+                style={styles.answerBtn}
+                onClick={() => answer(true)}
+                disabled={answering}
+              >
+                ✓ Знаю
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -190,6 +288,13 @@ const EyeIcon = () => (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
     <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/>
     <circle cx="8" cy="8" r="2"/>
+  </svg>
+);
+
+const HeadphonesIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--accent)", flexShrink: 0 }}>
+    <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+    <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
   </svg>
 );
 
@@ -279,4 +384,7 @@ const styles = {
   finishBtn: { minWidth: 100 },
   overlayMobile: { padding: 0, alignItems: "stretch" },
   modalMobile: { borderRadius: 0, maxWidth: "100%", width: "100%", height: "100%", maxHeight: "100%" },
+
+  gestureHints: { marginTop: "auto", paddingTop: 16, display: "flex", justifyContent: "center" },
+  gestureHint: { fontSize: 13, color: "var(--text-muted)", textAlign: "center" },
 };

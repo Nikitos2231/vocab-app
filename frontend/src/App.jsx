@@ -68,7 +68,7 @@ function WordsApp({ onLogout }) {
       alert("Не нашлось слов по заданным параметрам.");
       return;
     }
-    setQuizMode({ words: quizWords });
+    setQuizMode({ words: quizWords, blindMode: params.blindMode ?? false });
   };
 
   const finishQuiz = () => { setQuizMode(null); refresh(); bumpStats(); };
@@ -109,7 +109,7 @@ function WordsApp({ onLogout }) {
         <QuizSetup onStart={startQuiz} onCancel={() => setQuizMode(null)} />
       )}
       {quizMode?.words && (
-        <QuizSession words={quizMode.words} onFinish={finishQuiz} />
+        <QuizSession words={quizMode.words} blindMode={quizMode.blindMode} onFinish={finishQuiz} />
       )}
       {importState && importState !== "loading" && (
         <ImportToast result={importState} onClose={() => setImportState(null)} />
