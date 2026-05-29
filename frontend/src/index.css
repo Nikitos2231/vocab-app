@@ -189,6 +189,11 @@ button:not(:disabled):active { transform: scale(0.96); }
 .word-card .card-actions { opacity: 0; transition: opacity 0.15s ease; }
 .word-card:hover .card-actions { opacity: 1; }
 
+/* on touch devices always show card actions */
+@media (hover: none) {
+  .word-card .card-actions { opacity: 1; }
+}
+
 /* ── sidebar section ── */
 .sidebar-section {
   transition: background 0.15s;
@@ -240,4 +245,15 @@ button:not(:disabled):active { transform: scale(0.96); }
 
 @keyframes mastery-fill {
   from { width: 0%; }
+}
+
+/* ── on touch devices always show card actions ── */
+@media (hover: none) {
+  .word-card .card-actions { opacity: 1; }
+}
+
+/* ── prevent iOS zoom on focus ── */
+@media (max-width: 700px) {
+  body { overflow-x: hidden; }
+  input, select, textarea { font-size: 16px; }
 }

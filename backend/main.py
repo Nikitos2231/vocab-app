@@ -246,33 +246,18 @@ def get_quiz_words(
     if not words:
         return []
 
-    # weight: mastery=20 -> ~1.0, mastery=100 -> ~1/30
-    # weight = (101 - mastery)^2, ratio 80^2/1^2 = 6400 >> 30, so we use sqrt-based formula:
-    # weight = 1 / (mastery/20)^(ln(30)/ln(5)) ≈ 1 / (mastery/20)^2.113
     exp = math.log(30) / math.log(5)
+
+    def weighted_sample_no_replace(population, weights, k):
+        # reservoir / key-based algorithm: assign each item a random key u^(1/w)
+        # and take the top-k. Produces weighted sample without replacement.
+        keys = [random.random() ** (1.0 / w) for w in weights]
+        ranked = sorted(zip(keys, population), reverse=True)
+        return [item for _, item in ranked[:k]]
+
     weights = [1.0 / ((w.mastery / 20.0) ** exp) for w in words]
-
     k = min(params.count, len(words))
-    selected = random.choices(words, weights=weights, k=k)
-    # deduplicate preserving weighted-random order
-    seen = set()
-    result = []
-    for w in selected:
-        if w.id not in seen:
-            seen.add(w.id)
-            result.append(w)
-    # if dedup reduced count, fill up from remaining
-    if len(result) < k:
-        remaining = [w for w in words if w.id not in seen]
-        if remaining:
-            rem_weights = [1.0 / ((w.mastery / 20.0) ** exp) for w in remaining]
-            extra = random.choices(remaining, weights=rem_weights, k=min(k - len(result), len(remaining)))
-            for w in extra:
-                if w.id not in seen:
-                    seen.add(w.id)
-                    result.append(w)
-
-    return result
+    return weighted_sample_no_replace(words, weights, k)
 
 
 @app.post("/api/words/{word_id}/mastery", response_model=schemas.WordOut)

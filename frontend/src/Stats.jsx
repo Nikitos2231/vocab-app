@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
 
-export function Stats({ refreshKey }) {
+export function Stats({ refreshKey, isMobile }) {
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export function Stats({ refreshKey }) {
   return (
     <div style={s.wrap}>
       {/* ── stat cards ── */}
-      <div style={s.cards}>
+      <div style={isMobile ? s.cardsMobile : s.cards}>
         <StatCard
           value={total}
           label="всего слов"
@@ -132,6 +132,11 @@ const s = {
     display: "grid",
     gridTemplateColumns: "repeat(4, 1fr)",
     gap: 10,
+  },
+  cardsMobile: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, 1fr)",
+    gap: 8,
   },
   card: {
     background: "var(--surface)",

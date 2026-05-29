@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { useIsMobile } from "./useIsMobile";
 import { WordForm } from "./WordForm";
 import { WordCard } from "./WordCard";
 import { LoginPage } from "./LoginPage";
@@ -25,6 +26,7 @@ export default function App() {
 }
 
 function WordsApp({ onLogout }) {
+  const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [speechPart, setSpeechPart] = useState("");
   const [entryType, setEntryType] = useState("");
@@ -35,6 +37,7 @@ function WordsApp({ onLogout }) {
   const [quizMode, setQuizMode] = useState(null);
   const [importState, setImportState] = useState(null);
   const [statsKey, setStatsKey] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const importRef = useRef(null);
 
   const masteryFiltered = masteryRange[0] !== MASTERY_MIN || masteryRange[1] !== MASTERY_MAX;
@@ -115,29 +118,48 @@ function WordsApp({ onLogout }) {
       {/* ── top bar ── */}
       <header style={styles.topbar}>
         <h1 style={styles.title}><span style={styles.titleAccent}>V</span>ocab</h1>
-        <div style={styles.topbarActions}>
-          <button className="btn-ghost" onClick={() => setQuizMode("setup")}><ZapIcon /> Тест</button>
-          <button
-            className={blurTranslations ? "btn-primary" : "btn-ghost"}
-            onClick={() => setBlurTranslations((v) => !v)}
-            title="Скрыть/показать переводы"
-          >
-            <EyeIcon open={!blurTranslations} /> {blurTranslations ? "Переводы скрыты" : "Скрыть переводы"}
-          </button>
-          <button className="btn-ghost" onClick={handleExport}><DownloadIcon /> Экспорт</button>
-          <button className="btn-ghost" onClick={() => importRef.current?.click()}><UploadIcon /> Импорт</button>
-          <input ref={importRef} type="file" accept=".csv" style={{ display: "none" }} onChange={handleImportFile} />
-          <button className="btn-primary" onClick={() => setShowForm(true)}>
-            + Добавить
-          </button>
-          <button className="btn-ghost" onClick={onLogout} style={styles.logoutBtn}><LogoutIcon /></button>
-        </div>
+        <input ref={importRef} type="file" accept=".csv" style={{ display: "none" }} onChange={handleImportFile} />
+
+        {isMobile ? (
+          <button className="btn-primary" style={styles.addBtnMobile} onClick={() => setShowForm(true)}>+ Добавить</button>
+        ) : (
+          <div style={styles.topbarActions}>
+            <button className="btn-ghost" onClick={() => setQuizMode("setup")}><ZapIcon /> Тест</button>
+            <button
+              className={blurTranslations ? "btn-primary" : "btn-ghost"}
+              onClick={() => setBlurTranslations((v) => !v)}
+              title="Скрыть/показать переводы"
+            >
+              <EyeIcon open={!blurTranslations} /> {blurTranslations ? "Переводы скрыты" : "Скрыть переводы"}
+            </button>
+            <button className="btn-ghost" onClick={handleExport}><DownloadIcon /> Экспорт</button>
+            <button className="btn-ghost" onClick={() => importRef.current?.click()}><UploadIcon /> Импорт</button>
+            <button className="btn-primary" onClick={() => setShowForm(true)}>+ Добавить</button>
+            <button className="btn-ghost" onClick={onLogout} style={styles.logoutBtn}><LogoutIcon /></button>
+          </div>
+        )}
       </header>
+
+      {/* ── mobile bottom bar ── */}
+      {isMobile && (
+        <nav style={styles.bottomBar}>
+          <BottomBarBtn icon={<ZapIcon />} label="Тест" onClick={() => setQuizMode("setup")} />
+          <BottomBarBtn
+            icon={<EyeIcon open={!blurTranslations} />}
+            label={blurTranslations ? "Переводы" : "Скрыть"}
+            onClick={() => setBlurTranslations((v) => !v)}
+            active={blurTranslations}
+          />
+          <BottomBarBtn icon={<DownloadIcon />} label="Экспорт" onClick={handleExport} />
+          <BottomBarBtn icon={<UploadIcon />} label="Импорт" onClick={() => importRef.current?.click()} />
+          <BottomBarBtn icon={<LogoutIcon />} label="Выйти" onClick={onLogout} />
+        </nav>
+      )}
 
       {/* ── add-word modal ── */}
       {showForm && (
         <div style={styles.modalOverlay} onClick={(e) => e.target === e.currentTarget && setShowForm(false)}>
-          <div style={styles.modalBox} className="fade-in">
+          <div style={{ ...styles.modalBox, ...(isMobile ? styles.modalBoxMobile : {}) }} className="fade-in">
             <div style={styles.modalHeader}>
               <h2 style={styles.modalTitle}>Новое слово</h2>
               <button className="btn-ghost" style={styles.modalClose} onClick={() => setShowForm(false)}>✕</button>
@@ -150,7 +172,48 @@ function WordsApp({ onLogout }) {
       )}
 
       {/* ── body: cards + sidebar ── */}
-      <div style={styles.body}>
+      <div style={isMobile ? styles.bodyMobile : styles.body}>
+
+        {/* mobile: collapsible filters above cards */}
+        {isMobile && (
+          <div style={styles.mobileFilterWrap}>
+            <button
+              className={hasFilters ? "btn-primary" : "btn-ghost"}
+              style={styles.mobileFilterBtn}
+              onClick={() => setSidebarOpen((v) => !v)}
+            >
+              <FilterIcon /> Фильтры {sidebarOpen ? "▲" : "▼"}
+            </button>
+            {sidebarOpen && (
+              <div style={styles.mobileFilterPanel}>
+                <SidebarSection label="Часть речи" icon={<TagIcon />}>
+                  <select value={speechPart} onChange={(e) => setSpeechPart(e.target.value)}>
+                    <option value="">Все</option>
+                    {SPEECH_PARTS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+                  </select>
+                </SidebarSection>
+                <SidebarSection label="Тип" icon={<TypeIcon />}>
+                  <select value={entryType} onChange={(e) => setEntryType(e.target.value)}>
+                    <option value="">Слова и фразы</option>
+                    {ENTRY_TYPES.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+                  </select>
+                </SidebarSection>
+                <SidebarSection label="Сортировка" icon={<SortIcon />}>
+                  <select value={sort} onChange={(e) => setSort(e.target.value)}>
+                    {SORT_OPTIONS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+                  </select>
+                </SidebarSection>
+                <SidebarSection label="Изученность" icon={<StarIcon />}>
+                  <RangeSlider value={masteryRange} onChange={setMasteryRange} min={MASTERY_MIN} max={MASTERY_MAX} />
+                </SidebarSection>
+                {hasFilters && (
+                  <button className="btn-ghost" style={styles.resetBtn} onClick={resetFilters}>✕ Сбросить фильтры</button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* cards area */}
         <main style={styles.main}>
           <input
@@ -159,7 +222,7 @@ function WordsApp({ onLogout }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <Stats refreshKey={statsKey} />
+          <Stats refreshKey={statsKey} isMobile={isMobile} />
           {loading && (
             <div style={styles.stateWrap}><div style={styles.spinner} /></div>
           )}
@@ -170,7 +233,7 @@ function WordsApp({ onLogout }) {
             </p>
           )}
           {!loading && (
-            <div style={styles.grid}>
+            <div style={isMobile ? styles.gridMobile : styles.grid}>
               {words.map((w) => (
                 <WordCard key={w.id} word={w} onUpdate={handleUpdate} onDelete={handleDelete} blurTranslation={blurTranslations} />
               ))}
@@ -183,47 +246,68 @@ function WordsApp({ onLogout }) {
           )}
         </main>
 
-        {/* sidebar */}
-        <aside style={styles.sidebar}>
-          <SidebarSection label="Часть речи" icon={<TagIcon />}>
-            <select value={speechPart} onChange={(e) => setSpeechPart(e.target.value)}>
-              <option value="">Все</option>
-              {SPEECH_PARTS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
-            </select>
-          </SidebarSection>
-
-          <SidebarSection label="Тип" icon={<TypeIcon />}>
-            <select value={entryType} onChange={(e) => setEntryType(e.target.value)}>
-              <option value="">Слова и фразы</option>
-              {ENTRY_TYPES.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
-            </select>
-          </SidebarSection>
-
-          <SidebarSection label="Сортировка" icon={<SortIcon />}>
-            <select value={sort} onChange={(e) => setSort(e.target.value)}>
-              {SORT_OPTIONS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
-            </select>
-          </SidebarSection>
-
-          <SidebarSection label="Изученность" icon={<StarIcon />}>
-            <RangeSlider
-              value={masteryRange}
-              onChange={setMasteryRange}
-              min={MASTERY_MIN}
-              max={MASTERY_MAX}
-            />
-          </SidebarSection>
-
-          {hasFilters && (
-            <button className="btn-ghost" style={styles.resetBtn} onClick={resetFilters}>
-              ✕ Сбросить фильтры
-            </button>
-          )}
-        </aside>
+        {/* desktop sidebar */}
+        {!isMobile && (
+          <aside style={styles.sidebar}>
+            <SidebarSection label="Часть речи" icon={<TagIcon />}>
+              <select value={speechPart} onChange={(e) => setSpeechPart(e.target.value)}>
+                <option value="">Все</option>
+                {SPEECH_PARTS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+              </select>
+            </SidebarSection>
+            <SidebarSection label="Тип" icon={<TypeIcon />}>
+              <select value={entryType} onChange={(e) => setEntryType(e.target.value)}>
+                <option value="">Слова и фразы</option>
+                {ENTRY_TYPES.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+              </select>
+            </SidebarSection>
+            <SidebarSection label="Сортировка" icon={<SortIcon />}>
+              <select value={sort} onChange={(e) => setSort(e.target.value)}>
+                {SORT_OPTIONS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+              </select>
+            </SidebarSection>
+            <SidebarSection label="Изученность" icon={<StarIcon />}>
+              <RangeSlider value={masteryRange} onChange={setMasteryRange} min={MASTERY_MIN} max={MASTERY_MAX} />
+            </SidebarSection>
+            {hasFilters && (
+              <button className="btn-ghost" style={styles.resetBtn} onClick={resetFilters}>✕ Сбросить фильтры</button>
+            )}
+          </aside>
+        )}
       </div>
     </div>
   );
 }
+
+function BottomBarBtn({ icon, label, onClick, active }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{ ...bbs.btn, ...(active ? bbs.btnActive : {}) }}
+    >
+      <span style={bbs.icon}>{icon}</span>
+      <span style={bbs.label}>{label}</span>
+    </button>
+  );
+}
+
+const bbs = {
+  btn: {
+    flex: 1,
+    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+    gap: 3,
+    background: "transparent", border: "none",
+    color: "var(--text-muted)",
+    padding: "6px 0",
+    cursor: "pointer",
+    borderRadius: 0,
+    height: "100%",
+    transition: "color 0.15s",
+  },
+  btnActive: { color: "var(--accent)" },
+  icon: { display: "flex", alignItems: "center", justifyContent: "center", width: 20, height: 20 },
+  label: { fontSize: 10, fontWeight: 500, letterSpacing: "0.02em", whiteSpace: "nowrap" },
+};
 
 function SidebarSection({ label, icon, children }) {
   return (
@@ -296,6 +380,11 @@ const StarIcon = () => (
     <path d="M8 1l1.8 3.6L14 5.4l-3 2.9.7 4.1L8 10.4l-3.7 2 .7-4.1L2 5.4l4.2-.8L8 1z"/>
   </svg>
 );
+const FilterIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+    <path d="M2 4h12M5 8h6M7 12h2"/>
+  </svg>
+);
 
 function ImportToast({ result, onClose }) {
   return (
@@ -354,8 +443,19 @@ const styles = {
   title: { fontSize: 20, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.3px", flexShrink: 0 },
   titleAccent: { color: "var(--accent)" },
   topbarActions: { display: "flex", gap: 8, alignItems: "center", marginLeft: "auto", flexShrink: 0 },
-  searchInput: { display: "block", width: "100%", marginBottom: 16 },
+  addBtnMobile: { marginLeft: "auto", flexShrink: 0 },
   logoutBtn: { padding: "0 10px" },
+
+  bottomBar: {
+    position: "fixed", bottom: 0, left: 0, right: 0,
+    height: 56,
+    background: "var(--surface)",
+    borderTop: "1px solid var(--border)",
+    display: "flex", alignItems: "stretch",
+    zIndex: 20,
+    boxShadow: "0 -4px 20px rgba(0,0,0,0.3)",
+  },
+  searchInput: { display: "block", width: "100%", marginBottom: 16 },
 
   modalOverlay: {
     position: "fixed", inset: 0,
@@ -373,6 +473,12 @@ const styles = {
     overflow: "hidden",
     boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
   },
+  modalBoxMobile: {
+    maxWidth: "100%",
+    borderRadius: "var(--radius)",
+    maxHeight: "calc(100vh - 32px)",
+    overflowY: "auto",
+  },
   modalHeader: {
     display: "flex", justifyContent: "space-between", alignItems: "center",
     padding: "18px 24px 0",
@@ -389,6 +495,13 @@ const styles = {
     gap: 20,
     maxWidth: 1200, margin: "0 auto", width: "100%",
   },
+  bodyMobile: {
+    display: "flex", flexDirection: "column",
+    flex: 1,
+    padding: "12px 12px 72px",
+    gap: 0,
+    width: "100%",
+  },
 
   main: { flex: 1, minWidth: 0 },
 
@@ -396,6 +509,22 @@ const styles = {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
     gap: 12,
+  },
+  gridMobile: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 10,
+  },
+
+  mobileFilterWrap: { marginBottom: 12 },
+  mobileFilterBtn: { width: "100%", gap: 6 },
+  mobileFilterPanel: {
+    marginTop: 6,
+    display: "flex", flexDirection: "column", gap: 12,
+    background: "var(--surface)",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-lg)",
+    padding: 14,
   },
 
   sidebar: {

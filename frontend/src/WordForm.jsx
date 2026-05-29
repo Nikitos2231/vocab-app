@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useIsMobile } from "./useIsMobile";
 import { SPEECH_PARTS, ENTRY_TYPES } from "./constants";
 import { api } from "./api";
 
@@ -7,6 +8,7 @@ const empty = { word: "", translation: "", speech_part: "noun", entry_type: "wor
 const isPhrase = (form) => form.entry_type === "phrase";
 
 export function WordForm({ initial, onSave, onCancel }) {
+  const isMobile = useIsMobile();
   const [form, setForm] = useState(initial || empty);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -73,7 +75,7 @@ export function WordForm({ initial, onSave, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} style={styles.form}>
-      <div style={styles.row}>
+      <div style={isMobile ? styles.rowMobile : styles.row}>
         <div style={styles.field}>
           <label style={styles.label}>Слово (EN)</label>
           <input
@@ -95,7 +97,7 @@ export function WordForm({ initial, onSave, onCancel }) {
           />
         </div>
       </div>
-      <div style={styles.row}>
+      <div style={isMobile ? styles.rowMobile : styles.row}>
         <div style={styles.field}>
           <label style={{ ...styles.label, opacity: isPhrase(form) ? 0.4 : 1 }}>Часть речи</label>
           <select
@@ -193,6 +195,7 @@ export function WordForm({ initial, onSave, onCancel }) {
 const styles = {
   form: { display: "flex", flexDirection: "column", gap: 12 },
   row: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
+  rowMobile: { display: "grid", gridTemplateColumns: "1fr", gap: 12 },
   field: { display: "flex", flexDirection: "column", gap: 5 },
   label: { fontSize: 12, color: "var(--text-muted)", fontWeight: 500, transition: "opacity 0.15s" },
   errorSlot: { minHeight: 20 },

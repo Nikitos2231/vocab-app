@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useIsMobile } from "./useIsMobile";
 import { SPEECH_PART_LABELS, ENTRY_TYPE_LABELS } from "./constants";
 import { WordForm } from "./WordForm";
 import { api } from "./api";
@@ -49,6 +50,7 @@ function playWord(word) {
 }
 
 export function WordCard({ word, onUpdate, onDelete, blurTranslation = false }) {
+  const isMobile = useIsMobile();
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [revealed, setRevealed] = useState(false);
@@ -76,7 +78,7 @@ export function WordCard({ word, onUpdate, onDelete, blurTranslation = false }) 
     <>
       {editing && (
         <div style={modal.overlay} onClick={(e) => e.target === e.currentTarget && setEditing(false)}>
-          <div style={modal.box} className="fade-in">
+          <div style={{ ...modal.box, ...(isMobile ? modal.boxMobile : {}) }} className="fade-in">
             <div style={modal.header}>
               <h2 style={modal.title}>Редактировать слово</h2>
               <button className="btn-ghost" style={modal.close} onClick={() => setEditing(false)}>✕</button>
@@ -160,6 +162,12 @@ const modal = {
     display: "flex", flexDirection: "column",
     overflow: "hidden",
     boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+  },
+  boxMobile: {
+    maxWidth: "100%",
+    borderRadius: "var(--radius)",
+    maxHeight: "calc(100vh - 32px)",
+    overflowY: "auto",
   },
   header: {
     display: "flex", justifyContent: "space-between", alignItems: "center",

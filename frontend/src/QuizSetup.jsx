@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useIsMobile } from "./useIsMobile";
 import { SPEECH_PARTS, ENTRY_TYPES } from "./constants";
 import { RangeSlider } from "./RangeSlider";
 
@@ -18,6 +19,7 @@ function saveParams(params) {
 }
 
 export function QuizSetup({ onStart, onCancel }) {
+  const isMobile = useIsMobile();
   const saved = loadSaved();
   const [count, setCount] = useState(saved?.count ?? 10);
   const [speechParts, setSpeechParts] = useState(saved?.speechParts ?? []);
@@ -65,8 +67,8 @@ export function QuizSetup({ onStart, onCancel }) {
   };
 
   return (
-    <div style={styles.overlay} onClick={(e) => e.target === e.currentTarget && onCancel()}>
-      <div style={styles.modal} className="fade-in">
+    <div style={{ ...styles.overlay, ...(isMobile ? styles.overlayMobile : {}) }} onClick={(e) => e.target === e.currentTarget && onCancel()}>
+      <div style={{ ...styles.modal, ...(isMobile ? styles.modalMobile : {}) }} className="fade-in">
         <div style={styles.modalHeader}>
           <h2 style={styles.title}>Настройка теста</h2>
           <button className="btn-ghost" style={styles.closeBtn} onClick={onCancel}>✕</button>
@@ -224,4 +226,6 @@ const styles = {
   },
   startBtn: { minWidth: 120 },
   resetBtn: { marginRight: "auto" },
+  overlayMobile: { padding: 0, alignItems: "flex-end" },
+  modalMobile: { borderRadius: "var(--radius-lg) var(--radius-lg) 0 0", maxWidth: "100%", width: "100%", maxHeight: "90vh" },
 };

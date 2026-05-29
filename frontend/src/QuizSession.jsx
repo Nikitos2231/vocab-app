@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useIsMobile } from "./useIsMobile";
 import { api } from "./api";
 import { SPEECH_PART_LABELS, ENTRY_TYPE_LABELS } from "./constants";
 
@@ -29,6 +30,7 @@ const PART_COLORS = {
 };
 
 export function QuizSession({ words: initialWords, onFinish }) {
+  const isMobile = useIsMobile();
   const [words, setWords] = useState(initialWords);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -63,8 +65,8 @@ export function QuizSession({ words: initialWords, onFinish }) {
     const pct = Math.round((correctCount / results.length) * 100);
     const scoreColor = pct >= 70 ? "var(--success)" : pct >= 40 ? "var(--warning)" : "var(--danger)";
     return (
-      <div style={styles.overlay}>
-        <div style={styles.modal} className="fade-in">
+      <div style={{ ...styles.overlay, ...(isMobile ? styles.overlayMobile : {}) }}>
+        <div style={{ ...styles.modal, ...(isMobile ? styles.modalMobile : {}) }} className="fade-in">
           <div style={styles.doneHeader}>
             <div style={styles.doneEmoji}>{pct >= 70 ? "🎉" : pct >= 40 ? "💪" : "📚"}</div>
             <h2 style={styles.title}>Тест завершён</h2>
@@ -105,8 +107,8 @@ export function QuizSession({ words: initialWords, onFinish }) {
   const progress = (index / words.length) * 100;
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.modal} className="fade-in">
+    <div style={{ ...styles.overlay, ...(isMobile ? styles.overlayMobile : {}) }}>
+      <div style={{ ...styles.modal, ...(isMobile ? styles.modalMobile : {}) }} className="fade-in">
         {/* progress */}
         <div style={styles.progressWrap}>
           <div style={styles.progressBar}>
@@ -275,4 +277,6 @@ const styles = {
   resultMastery: { fontWeight: 700, fontSize: 12, flexShrink: 0 },
   doneActions: { padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" },
   finishBtn: { minWidth: 100 },
+  overlayMobile: { padding: 0, alignItems: "stretch" },
+  modalMobile: { borderRadius: 0, maxWidth: "100%", width: "100%", height: "100%", maxHeight: "100%" },
 };
